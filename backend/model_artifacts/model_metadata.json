@@ -1,0 +1,51 @@
+{
+    "feature_names": [
+        "febre",
+        "mialgia",
+        "cefaleia",
+        "exantema",
+        "vomito",
+        "nausea",
+        "artralgia",
+        "sexo_encoded",
+        "idade",
+        "febre_mialgia",
+        "febre_artralgia",
+        "mialgia_artralgia",
+        "cefaleia_artralgia",
+        "indice_articular_v2",
+        "indice_cutaneo_v2",
+        "indice_sistemico",
+        "ratio_articular_cutaneo",
+        "ratio_sistemico_articular",
+        "febre_exantema_quad",
+        "artralgia_mialgia_quad",
+        "padrao_zika",
+        "padrao_chik",
+        "padrao_dengue",
+        "febre_exantema",
+        "exantema_artralgia",
+        "artralgia_idade",
+        "nausea_vomito",
+        "febre_artralgia_mialgia",
+        "exantema_febre_artralgia",
+        "sintomas_zika_index",
+        "sintomas_chik_index",
+        "artralgia_exantema_ratio",
+        "indice_articular",
+        "indice_cutaneo",
+        "padrao_temporal",
+        "zika_score",
+        "chik_score"
+    ],
+    "target_map": {
+        "0": "zika",
+        "1": "dengue",
+        "2": "chikungunya"
+    },
+    "model_paths": {
+        "xgboost": "C:\\Users\\rosal\\Documents\\TC-Fase01\\EpiScope---Disease-Data-Analyzer\\backend\\model_artifacts\\xgboost_model.joblib",
+        "random_forest": "C:\\Users\\rosal\\Documents\\TC-Fase01\\EpiScope---Disease-Data-Analyzer\\backend\\model_artifacts\\randomforest_model.joblib",
+        "scaler": "C:\\Users\\rosal\\Documents\\TC-Fase01\\EpiScope---Disease-Data-Analyzer\\backend\\model_artifacts\\scaler.joblib"
+    }
+}

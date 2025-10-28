@@ -4,12 +4,18 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 import os
 import time
+from dotenv import load_dotenv
 
 print("Iniciando processo de limpeza (v4 - Sem Vazamento / Undersampling)...")
 start_time = time.time()
 
 # 1. Conectar ao banco
-DB_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@db:5432/{os.getenv('POSTGRES_DB')}"
+load_dotenv()  # Garantir que o .env seja carregado
+DB_USER = os.getenv('POSTGRES_USER')
+DB_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+DB_NAME = os.getenv('POSTGRES_DB')
+print(f"Tentando conectar com: user={DB_USER}, db={DB_NAME}")
+DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@localhost:5432/{DB_NAME}"
 engine = create_engine(DB_URL)
 CHUNK_SIZE = 100000
 

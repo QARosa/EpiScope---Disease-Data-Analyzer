@@ -1,0 +1,1 @@
+{"features": ["febre", "mialgia", "cefaleia", "exantema", "vomito", "nausea", "artralgia", "dor_retro", "sexo_encoded", "idade", "articular_severity", "artralgia_exantema_ratio", "systemic_index", "chik_pattern"], "model_version": "v7", "num_classes": 3, "class_mapping": {"0": "zika", "1": "dengue", "2": "chikungunya"}}
