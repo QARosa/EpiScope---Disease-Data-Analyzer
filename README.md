@@ -28,6 +28,7 @@ A aplicação oferece duas modalidades de análise:
 - **Arquitetura Híbrida Web2 & Web3:** análise via API REST ou blockchain.  
 - **Pipeline de Dados Completo:** ingestão, limpeza e armazenamento em PostgreSQL.  
 - **Diagnóstico com IA:** modelo de **Árvore de Decisão** baseado em sintomas e dados clínicos.  
+- **Diagnóstico com IA:** modelo de **XGBoost** baseado em sintomas e dados clínicos.  
 - **IA Generativa (Gemini):** interpreta linguagem natural e gera respostas humanizadas.  
 - **Diagnóstico Verificável:** executado de forma descentralizada via **Cartesi Machine**.  
 - **Interface Moderna:** **React + TypeScript + Vite**, integração com **MetaMask**.  

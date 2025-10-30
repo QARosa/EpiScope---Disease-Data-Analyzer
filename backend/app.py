@@ -1,12 +1,13 @@
 # backend/app.py (VERSÃO 6 - JSON Serialization Fix)
 import os
 import joblib
-import google.generativeai as genai
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import json
 import pandas as pd
 import re
+import logging
+from typing import Dict, List, Any, Optional
 from flask_cors import CORS
 import xgboost # Explicit import can help joblib
 import numpy as np # Import numpy to check types
@@ -16,18 +17,27 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# --- Configuração de Logging ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- Constantes ---
 ARTIFACTS_DIR = "/app/model_artifacts"
 MODEL_PATH = os.path.join(ARTIFACTS_DIR, 'xgboost_model.joblib')
 COLUMNS_PATH = os.path.join(ARTIFACTS_DIR, 'model_columns.json')
 TARGET_MAP_PATH = os.path.join(ARTIFACTS_DIR, 'target_map.json')
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 # --- CONFIGURAÇÃO E CARREGAMENTO ---
 try:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY não encontrada no ambiente.")
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_API_KEY)
     model_gemini = genai.GenerativeModel('gemini-2.5-flash')
-    print("Modelo Gemini configurado com sucesso.")
+    logging.info("Modelo Gemini configurado com sucesso.")
 except Exception as e:
-    print(f"ERRO: Falha ao configurar o Gemini. Verifique a GEMINI_API_KEY. Erro: {e}")
+    logging.error(f"Falha ao configurar o Gemini. Verifique a GEMINI_API_KEY. Erro: {e}")
     model_gemini = None
 
 try:
@@ -36,14 +46,14 @@ try:
         model_columns = json.load(f)
     with open(TARGET_MAP_PATH, 'r') as f:
         target_map = {int(k): v for k, v in json.load(f).items()}
-    print(f"Modelo de ML (XGBoost) e artefatos carregados com sucesso do volume '{ARTIFACTS_DIR}'.")
+    logging.info(f"Modelo de ML (XGBoost) e artefatos carregados com sucesso do volume '{ARTIFACTS_DIR}'.")
 except Exception as e:
-    print(f"ERRO: Artefatos do modelo de ML não encontrados em '{ARTIFACTS_DIR}'. Execute o train_model.py. Erro: {e}")
+    logging.error(f"Artefatos do modelo de ML não encontrados em '{ARTIFACTS_DIR}'. Execute o train_model.py. Erro: {e}")
     ml_model, model_columns, target_map = None, None, None
 
 
 # --- FUNÇÃO AUXILIAR ---
-def parse_json_from_gemini_response(text):
+def parse_json_from_gemini_response(text: str) -> Optional[Dict[str, Any]]:
     match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
     if match:
         json_str = match.group(1)
@@ -52,7 +62,7 @@ def parse_json_from_gemini_response(text):
     try:
         return json.loads(json_str)
     except json.JSONDecodeError:
-        print(f"Erro ao decodificar JSON da resposta do Gemini: {text}")
+        logging.error(f"Erro ao decodificar JSON da resposta do Gemini: {text}")
         return None
 
 def get_symptom_list_from_cols(cols):
@@ -63,12 +73,12 @@ def get_symptom_list_from_cols(cols):
     return symptoms
 
 # --- MUDANÇA: Helper function to convert numpy floats ---
-def convert_numpy_floats(data):
+def convert_numpy_types(data: Any) -> Any:
     """Recursively converts numpy float32/64 to Python float in dicts and lists."""
     if isinstance(data, dict):
-        return {k: convert_numpy_floats(v) for k, v in data.items()}
+        return {k: convert_numpy_types(v) for k, v in data.items()}
     elif isinstance(data, list):
-        return [convert_numpy_floats(item) for item in data]
+        return [convert_numpy_types(item) for item in data]
     elif isinstance(data, (np.float32, np.float64)):
         return float(data)
     elif isinstance(data, (np.int32, np.int64)): # Also handle numpy ints just in case
@@ -109,20 +119,20 @@ def diagnose():
 
     # --- CONTROLLER 2: Preparar o DataFrame para o modelo de ML ---
     try:
-        input_df = pd.DataFrame(columns=model_columns, index=[0]).fillna(0)
+        # Inicia com um dicionário, que é mais eficiente para uma única linha
+        input_dict = {col: 0 for col in model_columns}
+
         for symptom, present in structured_symptoms.items():
-            # Only fill symptoms that are actual columns expected by the model
             if symptom in model_columns and present:
-                input_df.loc[0, symptom] = 1
-            # Add a check for unknown symptoms extracted by AI, maybe log them
+                input_dict[symptom] = 1
             elif symptom not in model_columns and present:
-                 print(f"AVISO: IA extraiu sintoma '{symptom}' não esperado pelo modelo. Ignorando.")
+                 logging.warning(f"IA extraiu sintoma '{symptom}' não esperado pelo modelo. Ignorando.")
 
-        input_df.loc[0, 'idade'] = age
-        input_df.loc[0, 'sexo_encoded'] = 1 if sex.upper() == 'F' else 0
+        input_dict['idade'] = age
+        input_dict['sexo_encoded'] = 1 if sex.upper() == 'F' else 0
 
-        # Ensure correct column order, dropping any extra cols the AI might have added
-        input_df = input_df[model_columns]
+        # Cria o DataFrame com a ordem correta das colunas
+        input_df = pd.DataFrame([input_dict], columns=model_columns)
 
     except Exception as e:
         return jsonify({"error": f"Erro ao preparar dados para o modelo: {str(e)}"}), 500
@@ -134,7 +144,7 @@ def diagnose():
     except AttributeError:
          prediction = ml_model.predict(input_df)[0]
          results = {target_map[i]: (1.0 if i == prediction else 0.0) for i in target_map}
-         print("AVISO: Usando predict() em vez de predict_proba() para XGBoost.")
+         logging.warning("Usando predict() em vez de predict_proba() para XGBoost.")
 
     # --- CONTROLLER 4: Gerar resposta amigável com IA ---
     sorted_results = sorted(results.items(), key=lambda item: item[1], reverse=True)
@@ -172,8 +182,8 @@ def diagnose():
 
     # --- MUDANÇA: Convert data types before jsonify ---
     # Convert probabilities (results) and input features just in case
-    results_serializable = convert_numpy_floats(results)
-    input_features_serializable = convert_numpy_floats(input_df.to_dict(orient='records')[0])
+    results_serializable = convert_numpy_types(results)
+    input_features_serializable = convert_numpy_types(input_df.to_dict(orient='records')[0])
     # --- FIM DA MUDANÇA ---
 
     return jsonify({
